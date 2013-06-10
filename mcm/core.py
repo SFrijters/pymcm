@@ -222,11 +222,21 @@ class MCMApi(object):
                 if data:
                     result['id'] = result['name'].replace(" ","_") + "_" + result['expansion'].replace(" ","_") + ".c1p" + data + ".prod"
 
-                pfstr = tree2.xpath('tr/td[2]')[1].text.replace(",",".").replace(u'\u20ac',"")
-                if (pfstr != u"N/A"):
-                    result['price_from'] = float(pfstr)
+                tree2 = tree.xpath('//table[contains(@class, "availTable")]/tbody')[0]
+                avstr = tree2.xpath('tr/td[2]')[0].text
+                if (avstr is None):
+                    result['available'] = 0
                 else:
-                    result['price_from'] = 0
+                    result['available'] = int(avstr) 
+                    
+                if (result['available'] > 0):
+                    pfstr = tree2.xpath('tr/td[2]')[1].text.replace(",",".").replace(u'\u20ac',"")
+                    if (pfstr != "N/A"):
+                        result['price_from'] = float(pfstr)
+                    else:
+                        result['price_from'] = 0.0
+                else:
+                    result['price_from'] = price_from = 0.0
 
                 c = models.Card(result['id'], name=result['name'], img=result['img'])
                 yield models.SearchResult(c, result['expansion'], result['rarity'], result['category'], result['available'], result['price_from'])
@@ -275,7 +285,7 @@ class MCMApi(object):
                         result['price_from'] = float(m.group(1).replace(',', '.'))
 
                 if ( result['name'] == query ):
-                    if ( result['expansion'].find(u'WCD') < 0 and result['expansion'].find(u'Collectors\\\' Edition') < 0 ):
+                    if ( result['expansion'].find(u'WCD') < 0 and result['expansion'].find(u'Collectors\\\' Edition') < 0 and result['expansion'].find(u'International Edition') < 0 ):
                         c = models.Card(result['id'], name=result['name'], img=result['img'])
                         yield models.SearchResult(c, result['expansion'], result['rarity'], result['category'], result['available'], result['price_from'])
 
