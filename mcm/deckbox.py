@@ -100,5 +100,5 @@ class DeckboxApi(object):
 if __name__ == '__main__':
     db = DeckboxApi(username='foo',password='bar',mcmUsername='',mcmPassword='')
     db.login()
-    db.get_deck_needs('name of the deck;)
+    db.get_deck_needs('name of the deck')
 
