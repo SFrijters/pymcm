@@ -77,4 +77,8 @@ pymcm is written by:
 
 * Benito Rodriguez - brarcos@gmail.com
 
-Suggestions, bugs,... https://github.com/b3ni/pymcm/issues
+pymcm-deckbox extension is written by:
+
+* Stefan Frijters - sfrijters@gmail.com
+
+Suggestions, bugs,... https://github.com/SFrijters/pymcm/issues
