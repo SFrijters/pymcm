@@ -245,22 +245,22 @@ class MCMApi(object):
 
                 data = row.xpath("td[2]/span/@onmouseover")
                 if data:
-                    m = re.search("'(.+?)'", data[0])
-                    result['expansion'] = m.group(1)
+                    m = re.search("'(.+)'", data[0])
+                    result['expansion'] = m.group(1).strip()
 
                 data = row.xpath("td[3]/img/@onmouseover")
                 if data:
                     m = re.search("'(.+?)'", data[0])
-                    result['rarity'] = m.group(1)
+                    result['rarity'] = m.group(1).strip()
 
                 data = row.xpath("td[5]/a")
                 if data:
                     result['id'] = data[0].attrib['href']
-                    result['name'] = data[0].text
+                    result['name'] = data[0].text.strip()
 
                 data = row.xpath("td[6]")
                 if data:
-                    result['category'] = data[0].text
+                    result['category'] = data[0].text.strip()
 
                 data = row.xpath("td[7]")
                 if data:
@@ -274,8 +274,10 @@ class MCMApi(object):
                         m = re.search("(\d+,\d+) ", data[0].text)
                         result['price_from'] = float(m.group(1).replace(',', '.'))
 
-                c = models.Card(result['id'], name=result['name'], img=result['img'])
-                yield models.SearchResult(c, result['expansion'], result['rarity'], result['category'], result['available'], result['price_from'])
+                if ( result['name'] == query ):
+                    if ( result['expansion'].find(u'WCD') < 0 and result['expansion'].find(u'Collectors\\\' Edition') < 0 ):
+                        c = models.Card(result['id'], name=result['name'], img=result['img'])
+                        yield models.SearchResult(c, result['expansion'], result['rarity'], result['category'], result['available'], result['price_from'])
 
             # next page
             pagenow += 1
@@ -339,16 +341,25 @@ class MCMApi(object):
         exp = exp.replace(card.name,"").replace(")","").replace("(","").strip()
 
         tree = tree.xpath('//table[contains(@class, "availTable")]')[0]
-        avail = int(tree.xpath('tbody/tr/td[2]')[0].text)
-        pfstr = tree.xpath('tbody/tr/td[2]')[1].text.replace(",",".").replace(u'\u20ac',"")
-        if (pfstr != "N/A"):
-            price_from = float(pfstr)
+        avstr = tree.xpath('tbody/tr/td[2]')[0].text
+        if (avstr is None):
+            avail = 0
+        else:
+            avail = int(avstr) 
+
+        if (avail > 0):
+            pfstr = tree.xpath('tbody/tr/td[2]')[1].text.replace(",",".").replace(u'\u20ac',"")
+            if (pfstr != "N/A"):
+                price_from = float(pfstr)
+            else:
+                price_from = 10000.0
+            pastr = tree.xpath('tbody/tr/td[2]')[2].text.replace(",",".").replace(u'\u20ac',"")
+            if (pastr != "N/A"):
+                price_avg = float(pastr)
+            else:
+                price_avg = 10000.0
         else:
             price_from = 10000.0
-        pastr = tree.xpath('tbody/tr/td[2]')[2].text.replace(",",".").replace(u'\u20ac',"")
-        if (pastr != "N/A"):
-            price_avg = float(pastr)
-        else:
             price_avg = 10000.0
 
         summary = models.PriceCardSummary(0, card, exp, avail, price_from, price_avg)
