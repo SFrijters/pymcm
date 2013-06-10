@@ -1,6 +1,6 @@
-# pymcm
+# pymcm-deckbox
 
-A python client for web MagicCardMarket https://www.magiccardmarket.eu/
+pymcm-deckbox is a library for interacting with web https://www.magiccardmarket.eu/ and http://www.deckbox.org. It is based on pymcm.
 
 ## Requires
 
@@ -25,12 +25,12 @@ sudo apt-get install libxml2-dev libxslt-dev
 ### Login and search card
 
 ```python
-import pymcm
+import pymcm-deckbox
 
 mcm = MCMApi(username='foo', password='duu')
 
 for result in mcm.search('sun titan'):
-    prind result.card.name, result.available
+    print result.card.name, result.available
 ```
 
 ### Read want lists
@@ -71,9 +71,17 @@ for ship in cart.ships():
         print a.card.name, a.price
 ```
 
+### Calculate value of missing cards of a deck
+
+```python
+db = DeckboxApi(username='foo',password='foo',mcmUsername='',mcmPassword='')
+db.login()
+db.get_deck_needs('name of the deck')
+```
+
 ## Contacts
 
-pymcm is written by:
+The original pymcm is written by:
 
 * Benito Rodriguez - brarcos@gmail.com
 
@@ -82,3 +90,4 @@ pymcm-deckbox extension is written by:
 * Stefan Frijters - sfrijters@gmail.com
 
 Suggestions, bugs,... https://github.com/SFrijters/pymcm/issues
+
