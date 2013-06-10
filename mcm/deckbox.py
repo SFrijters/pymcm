@@ -62,6 +62,8 @@ class DeckboxApi(object):
         tree = etree.fromstring(self.br.response().read().decode('utf-8'), parser=utf8_parser)
         wl = models.WantList(0, name)
 
+        print u'Deck: %s\n' %name
+
         for wlnode in tree.xpath('//table[contains(@class, "deck")]/tr'):
             cnarr = wlnode.xpath('td[contains(@class, "card_name")]')
             if (len(cnarr) > 0 ):
@@ -77,10 +79,10 @@ class DeckboxApi(object):
                     card = models.Card("", cn)
                     want = models.Want(card, need)
                     wl.wants.append(want)
-                    print str(need) + " " + cn + " (" + expansion + ") @ " + str(price) + " = " + str(price*need)
+                    print u'%d %s (%s) @ \u20ac%.2f = \u20ac%.2f' % (need, cn, expansion, price, price*need)
                     price_total_avg = price_total_avg + price*need
 
-        print "TOTAL: " + str(price_total_avg)
+        print u'\nTotal: \u20ac%.2f' % price_total_avg
 
         # return wl
 
