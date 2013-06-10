@@ -10,7 +10,6 @@ import datetime
 import re
 from lxml import etree
 
-
 class MCMApi(object):
     base = 'https://www.magiccardmarket.eu/'
 
@@ -184,10 +183,10 @@ class MCMApi(object):
         npages = None
         utf8_parser = etree.HTMLParser(encoding='utf-8')
 
-        while pagenow <= npages or npages is None:
-            print "PAGE: {0}/{1}".format(pagenow, npages)
+        while pagenow < npages or npages is None:
+            # print "PAGE: {0}/{1}".format(pagenow, npages)
 
-            self.br.open("{0}?mainPage=showSearchResult&searchFor={1}&resultsPage={2}".format(self.base, query, pagenow))
+            self.br.open("{0}?mainPage=showSearchResult&searchFor={1}&resultsPage={2}".format(self.base, query.replace(" ","+"), pagenow))
             tree = etree.fromstring(self.br.response().read().decode('utf-8'), parser=utf8_parser)
 
             # number of pages
@@ -199,15 +198,45 @@ class MCMApi(object):
                     npages = int(m.group(1)) + 1
 
             # serach table
-            tree = tree.xpath("//table[contains(@class, 'SearchTable')]/tbody")
-            if len(tree) == 0:
-                return
-            tree = tree[0]
+            tree2 = tree.xpath("//table[contains(@class, 'SearchTable')]/tbody")
+            if len(tree2) == 0:
+                result = {'img': '', 'expansion': '', 'rarity': '', 'name': '', 'id': '', 'category': '', 'available': '', 'price_from': 0}
+
+                data = tree.xpath("//span[contains(@class, 'prodImage')]/img/@src")[0]
+                if data:
+                    result['img'] = data
+
+                data = tree.xpath('//h1[contains(@class, "nameHeader")]')[0].text
+                if data:
+                    m = re.search("(.*)\((.*)\)", data)
+                    result['name'] = m.group(1).strip()
+                    result['expansion'] = m.group(2).strip()
+
+                tree2 = tree.xpath("//table[contains(@class, 'infoTable')]/tbody")[0]
+                data = tree2.xpath("tr[1]/td[2]/img/@onmouseover")
+                if data:
+                    m = re.search("'(.+?)'", data[0])
+                    result['rarity'] = m.group(1)
+
+                data = tree.xpath("//input[contains(@name, 'idProduct')]/@value")[0]
+                if data:
+                    result['id'] = result['name'].replace(" ","_") + "_" + result['expansion'].replace(" ","_") + ".c1p" + data + ".prod"
+
+                pfstr = tree2.xpath('tr/td[2]')[1].text.replace(",",".").replace(u'\u20ac',"")
+                if (pfstr != u"N/A"):
+                    result['price_from'] = float(pfstr)
+                else:
+                    result['price_from'] = 0
+
+                c = models.Card(result['id'], name=result['name'], img=result['img'])
+                yield models.SearchResult(c, result['expansion'], result['rarity'], result['category'], result['available'], result['price_from'])
+
+            tree = tree2[0]
 
             # rows
             rows = tree.xpath("tr[contains(@class, 'row_')]")
             for row in rows:
-                result = {'img': '', 'expansion': '', 'rarity': '', 'name': '', 'id': '', 'category': '', 'available': '', 'from': 0}
+                result = {'img': '', 'expansion': '', 'rarity': '', 'name': '', 'id': '', 'category': '', 'available': '', 'price_from': 0}
 
                 data = row.xpath("td[1]//img/@onmouseover")
                 if data:
@@ -260,43 +289,71 @@ class MCMApi(object):
 
         results = []
         for cardnode in tree.xpath('tbody/tr'):
-            node = cardnode.xpath('td[2]/span/span[1]/a')[0]
+            node = cardnode.xpath('td[1]/span/span[1]/a')[0]
             sellerid = node.attrib['href']
             sellertext = node.text
-            node = cardnode.xpath('td[2]/span/span[2]/span/@onmouseover')[0]
+            node = cardnode.xpath('td[1]/span/span[2]/span/@onmouseover')[0]
             m = re.search('location: ([\w\s]+)', node)
             sellerlang = m.group(1)
-            node = cardnode.xpath('td[2]/span/span[3]/img/@onmouseover')[0]
+            node = cardnode.xpath('td[1]/span/span[3]/img/@onmouseover')[0]
             m = re.search("'([\w\s]+)'", node)
             sellerclass = m.group(1) if m else 'warning'
 
             s = models.Seller(sellerid, sellertext, country=sellerlang, cls=sellerclass)
 
-            node = cardnode.xpath('td[3]/span/@onmouseover')[0]
-            m = re.search("'([\w\s]+)'", node)
-            expansion = m.group(1)
+            # node = cardnode.xpath('td[3]/span/@onmouseover')[0]
+            # m = re.search("'([\w\s]+)'", node)
+            # expansion = m.group(1)
+            expansion = ""
 
-            node = cardnode.xpath('td[5]/a/span/@onmouseover')[0]
+            node = cardnode.xpath('td[2]/a/span/@onmouseover')[0]
             m = re.search("'([\w\s-]+)'", node)
             lang = m.group(1)
 
-            node = cardnode.xpath('td[6]/a/img/@onmouseover')[0]
+            node = cardnode.xpath('td[3]/a/img/@onmouseover')[0]
             m = re.search("'([\w\s]+)'", node)
             condition = m.group(1)
 
-            node = cardnode.xpath('td[9]/text()')[0]
+            node = cardnode.xpath('td[6]/text()')[0]
             m = re.search("([\d,]+) ", node)
             price = float(m.group(1).replace(',', '.'))
 
-            node = cardnode.xpath('td[10]/text()')[0]
+            node = cardnode.xpath('td[7]/text()')[0]
             quantity = int(node)
 
-            node = cardnode.xpath('td[11]//input[@type="image"]/@value')[0]
-            idprice = int(node)
+            # node = cardnode.xpath('td[7]//input[@type="image"]/@value')[0]
+            # idprice = int(node)
+            idprice = 0
 
             results.append(models.PriceCard(idprice, card, s, expansion, lang, condition, price, quantity))
 
         return results
+
+    def list_prices_summary(self, card, filters={}):
+        self.br.open(card.url())
+        utf8_parser = etree.HTMLParser(encoding='utf-8')
+        tree = etree.fromstring(self.br.response().read().decode('utf-8'), parser=utf8_parser)
+
+        exptree = tree.xpath('//h1[contains(@class, "nameHeader")]')
+        exp = etree.tostring(exptree[0], method="text")
+        exp = exp.replace(card.name,"").replace(")","").replace("(","").strip()
+
+        tree = tree.xpath('//table[contains(@class, "availTable")]')[0]
+        avail = int(tree.xpath('tbody/tr/td[2]')[0].text)
+        pfstr = tree.xpath('tbody/tr/td[2]')[1].text.replace(",",".").replace(u'\u20ac',"")
+        if (pfstr != "N/A"):
+            price_from = float(pfstr)
+        else:
+            price_from = 10000.0
+        pastr = tree.xpath('tbody/tr/td[2]')[2].text.replace(",",".").replace(u'\u20ac',"")
+        if (pastr != "N/A"):
+            price_avg = float(pastr)
+        else:
+            price_avg = 10000.0
+
+        summary = models.PriceCardSummary(0, card, exp, avail, price_from, price_avg)
+
+        return summary
 
     def add_to_cart(self, pricecard, amount=1):
         if pricecard.available < 1:

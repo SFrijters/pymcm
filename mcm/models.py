@@ -95,3 +95,13 @@ class PriceCard:
         self.condition = condition
         self.price = price
         self.available = available
+
+class PriceCardSummary:
+    def __init__(self, id, card, expansion, available, price_from, price_avg):
+        self.id = id
+        self.card = card
+        self.expansion = expansion
+        self.available = available
+        self.price_from = price_from
+        self.price_avg = price_avg
+
